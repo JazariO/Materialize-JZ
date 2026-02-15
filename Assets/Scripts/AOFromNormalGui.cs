@@ -119,7 +119,7 @@ public class AOFromNormalGui : MonoBehaviour {
 	}
 
 	// Use this for initialization
-	void Start () {
+	public void Start () {
 		
 		testObject.GetComponent<Renderer>().sharedMaterial = thisMaterial;
 		
@@ -269,8 +269,10 @@ public class AOFromNormalGui : MonoBehaviour {
 		blitMaterial.SetFloat ("_AOBlend", AOS.Blend);
 
 		Graphics.Blit(_BlendedAOMap, _TempAOMap, blitMaterial, 8);
-		
-		if (MainGuiScript._AOMap != null) {
+
+        yield return new WaitForEndOfFrame();
+
+        if (MainGuiScript._AOMap != null) {
 			Destroy (MainGuiScript._AOMap);
 		}
 
@@ -278,8 +280,10 @@ public class AOFromNormalGui : MonoBehaviour {
 		MainGuiScript._AOMap = new Texture2D( _TempAOMap.width, _TempAOMap.height, TextureFormat.ARGB32, true, true );
 		MainGuiScript._AOMap.ReadPixels(new Rect(0, 0, _TempAOMap.width, _TempAOMap.height), 0, 0);
 		MainGuiScript._AOMap.Apply();
-		
-		yield return new WaitForSeconds(0.1f);
+
+        yield return new WaitForEndOfFrame();
+
+        //yield return new WaitForSeconds(0.1f);
 		
 		CleanupTexture ( _TempAOMap );
 
@@ -313,27 +317,21 @@ public class AOFromNormalGui : MonoBehaviour {
 		blitMaterial.SetFloat ("_Depth", AOS.Depth);
 		thisMaterial.SetTexture ("_MainTex", _BlendedAOMap);
 
-		int yieldCountDown = 5;
+        // Iterative AO refinement - 100 progressive samples
+        for(int i = 1; i < 100; i++)
+        {
+            blitMaterial.SetFloat("_BlendAmount", 1.0f / (float)i);
+            blitMaterial.SetFloat("_Progress", (float)i / 100.0f);
 
-		for( int i = 1; i < 100; i++ ) {
+            Graphics.Blit(MainGuiScript._NormalMap, _WorkingAOMap, blitMaterial, 7);
+            Graphics.Blit(_WorkingAOMap, _BlendedAOMap);
 
-			blitMaterial.SetFloat ("_BlendAmount", 1.0f / (float)i );
-			blitMaterial.SetFloat ("_Progress", (float)i / 100.0f );
+            yield return new WaitForEndOfFrame();
+        }
 
-			Graphics.Blit (MainGuiScript._NormalMap, _WorkingAOMap, blitMaterial, 7);
-			Graphics.Blit (_WorkingAOMap, _BlendedAOMap);
+        yield return new WaitForEndOfFrame();
 
-
-			yieldCountDown -= 1;
-			if( yieldCountDown <= 0 ){
-				yieldCountDown = 5;
-				yield return new WaitForSeconds(0.01f);
-			}
-		}
-
-		yield return new WaitForSeconds(0.01f);
-
-		busy = false;
+        busy = false;
 
 	}
 }

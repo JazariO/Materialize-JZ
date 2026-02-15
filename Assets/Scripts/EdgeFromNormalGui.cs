@@ -149,7 +149,7 @@ public class EdgeFromNormalGui : MonoBehaviour {
 	}
 
 	// Use this for initialization
-	void Start () {
+	public void Start () {
 		
 		testObject.GetComponent<Renderer>().sharedMaterial = thisMaterial;
 		
@@ -495,8 +495,10 @@ public class EdgeFromNormalGui : MonoBehaviour {
 		blitMaterial.SetFloat ("_BlurContrast", ES.Blur0Contrast);
 		blitMaterial.SetTexture ("_MainTex", _NormalMap);
 		Graphics.Blit(_NormalMap, _BlurMap0, blitMaterial, 5);
-		
-		blitMaterial.SetFloat ("_BlurContrast", 1.0f);
+
+        yield return new WaitForEndOfFrame();
+
+        blitMaterial.SetFloat ("_BlurContrast", 1.0f);
 		
 		// Blur the image 1
 		blitMaterial.SetTexture ("_MainTex", _BlurMap0);
@@ -504,68 +506,91 @@ public class EdgeFromNormalGui : MonoBehaviour {
 		blitMaterial.SetFloat ("_BlurSpread", 1.0f);
 		blitMaterial.SetVector ("_BlurDirection", new Vector4(1,0,0,0) );
 		Graphics.Blit(_BlurMap0, _TempBlurMap, blitMaterial, 1);
-		
-		blitMaterial.SetTexture ("_MainTex", _TempBlurMap);
+
+        yield return new WaitForEndOfFrame();
+
+        blitMaterial.SetTexture ("_MainTex", _TempBlurMap);
 		blitMaterial.SetVector ("_BlurDirection", new Vector4(0,1,0,0) );
 		Graphics.Blit(_TempBlurMap, _BlurMap1, blitMaterial, 1);
-		
-		
-		// Blur the image 2
-		blitMaterial.SetTexture ("_MainTex", _BlurMap1);
+
+        yield return new WaitForEndOfFrame();
+
+        // Blur the image 2
+        blitMaterial.SetTexture ("_MainTex", _BlurMap1);
 		blitMaterial.SetFloat ("_BlurSpread", 2.0f);
 		blitMaterial.SetVector ("_BlurDirection", new Vector4(1,0,0,0) );
 		Graphics.Blit(_BlurMap1, _TempBlurMap, blitMaterial, 1);
-		
-		blitMaterial.SetTexture ("_MainTex", _TempBlurMap);
+
+        yield return new WaitForEndOfFrame();
+
+        blitMaterial.SetTexture ("_MainTex", _TempBlurMap);
 		blitMaterial.SetVector ("_BlurDirection", new Vector4(0,1,0,0) );
 		Graphics.Blit(_TempBlurMap, _BlurMap2, blitMaterial, 1);
-		
-		
-		// Blur the image 3
-		blitMaterial.SetTexture ("_MainTex", _BlurMap2);
+
+        yield return new WaitForEndOfFrame();
+
+
+        // Blur the image 3
+        blitMaterial.SetTexture ("_MainTex", _BlurMap2);
 		blitMaterial.SetFloat ("_BlurSpread", 4.0f);
 		blitMaterial.SetVector ("_BlurDirection", new Vector4(1,0,0,0) );
 		Graphics.Blit(_BlurMap2, _TempBlurMap, blitMaterial, 1);
-		
-		blitMaterial.SetTexture ("_MainTex", _TempBlurMap);
+
+        yield return new WaitForEndOfFrame();
+
+        blitMaterial.SetTexture ("_MainTex", _TempBlurMap);
 		blitMaterial.SetVector ("_BlurDirection", new Vector4(0,1,0,0) );
 		Graphics.Blit(_TempBlurMap, _BlurMap3, blitMaterial, 1);
-		
-		
-		// Blur the image 4
-		blitMaterial.SetTexture ("_MainTex", _BlurMap3);
+
+        yield return new WaitForEndOfFrame();
+
+
+        // Blur the image 4
+        blitMaterial.SetTexture ("_MainTex", _BlurMap3);
 		blitMaterial.SetFloat ("_BlurSpread", 8.0f);
 		blitMaterial.SetVector ("_BlurDirection", new Vector4(1,0,0,0) );
 		Graphics.Blit(_BlurMap3, _TempBlurMap, blitMaterial, 1);
-		
-		blitMaterial.SetTexture ("_MainTex", _TempBlurMap);
+
+        yield return new WaitForEndOfFrame();
+
+        blitMaterial.SetTexture ("_MainTex", _TempBlurMap);
 		blitMaterial.SetVector ("_BlurDirection", new Vector4(0,1,0,0) );
 		Graphics.Blit(_TempBlurMap, _BlurMap4, blitMaterial, 1);
-		
-		
-		// Blur the image 5
-		blitMaterial.SetTexture ("_MainTex", _BlurMap4);
+
+        yield return new WaitForEndOfFrame();
+
+
+        // Blur the image 5
+        blitMaterial.SetTexture ("_MainTex", _BlurMap4);
 		blitMaterial.SetFloat ("_BlurSpread", 16.0f);
 		blitMaterial.SetVector ("_BlurDirection", new Vector4(1,0,0,0) );
 		Graphics.Blit(_BlurMap4, _TempBlurMap, blitMaterial, 1);
-		
-		blitMaterial.SetTexture ("_MainTex", _TempBlurMap);
+
+        yield return new WaitForEndOfFrame();
+
+        blitMaterial.SetTexture ("_MainTex", _TempBlurMap);
 		blitMaterial.SetVector ("_BlurDirection", new Vector4(0,1,0,0) );
 		Graphics.Blit(_TempBlurMap, _BlurMap5, blitMaterial, 1);
-		
-		
-		// Blur the image 6
-		blitMaterial.SetTexture ("_MainTex", _BlurMap5);
+
+        yield return new WaitForEndOfFrame();
+
+
+        // Blur the image 6
+        blitMaterial.SetTexture ("_MainTex", _BlurMap5);
 		blitMaterial.SetFloat ("_BlurSpread", 32.0f);
 		blitMaterial.SetVector ("_BlurDirection", new Vector4(1,0,0,0) );
 		Graphics.Blit(_BlurMap5, _TempBlurMap, blitMaterial, 1);
-		
-		blitMaterial.SetTexture ("_MainTex", _TempBlurMap);
+
+        yield return new WaitForEndOfFrame();
+
+        blitMaterial.SetTexture ("_MainTex", _TempBlurMap);
 		blitMaterial.SetVector ("_BlurDirection", new Vector4(0,1,0,0) );
 		Graphics.Blit(_TempBlurMap, _BlurMap6, blitMaterial, 1);
-		
-		
-		thisMaterial.SetTexture ("_MainTex", _BlurMap0);
+
+        yield return new WaitForEndOfFrame();
+
+
+        thisMaterial.SetTexture ("_MainTex", _BlurMap0);
 		thisMaterial.SetTexture ("_BlurTex0", _BlurMap0);
 		thisMaterial.SetTexture ("_BlurTex1", _BlurMap1);
 		thisMaterial.SetTexture ("_BlurTex2", _BlurMap2);
@@ -573,8 +598,10 @@ public class EdgeFromNormalGui : MonoBehaviour {
 		thisMaterial.SetTexture ("_BlurTex4", _BlurMap4);
 		thisMaterial.SetTexture ("_BlurTex5", _BlurMap5);
 		thisMaterial.SetTexture ("_BlurTex6", _BlurMap6);
-		
-		yield return new WaitForSeconds(0.1f);
+
+        yield return new WaitForEndOfFrame();
+
+        //yield return new WaitForSeconds(0.1f);
 
 		busy = false;
 		

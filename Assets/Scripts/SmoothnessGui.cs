@@ -273,7 +273,7 @@ public class SmoothnessGui : MonoBehaviour {
 	}
 
 	// Use this for initialization
-	void Start () {
+	public void Start () {
 		
 		testObject.GetComponent<Renderer>().sharedMaterial = thisMaterial;
 		
@@ -747,8 +747,10 @@ public class SmoothnessGui : MonoBehaviour {
 		} else {
 			Graphics.Blit( _DiffuseMapOriginal, _TempMap, blitSmoothnessMaterial, 0 );
 		}
-		
-		RenderTexture.active = _TempMap;
+
+        yield return new WaitForEndOfFrame();
+
+        RenderTexture.active = _TempMap;
 
 		if (MainGuiScript._SmoothnessMap != null) {
 			Destroy (MainGuiScript._SmoothnessMap);
@@ -758,7 +760,8 @@ public class SmoothnessGui : MonoBehaviour {
 		MainGuiScript._SmoothnessMap.ReadPixels (new Rect (0, 0, _TempMap.width, _TempMap.height), 0, 0);
 		MainGuiScript._SmoothnessMap.Apply ();
 
-		yield return new WaitForSeconds(0.01f);
+        yield return new WaitForEndOfFrame();
+        //yield return new WaitForSeconds(0.01f);
 		
 		CleanupTexture ( _TempMap );
 

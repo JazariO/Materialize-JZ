@@ -161,7 +161,7 @@ public class MetallicGui : MonoBehaviour {
 	}
 
 	// Use this for initialization
-	void Start () {
+	public void Start () {
 
 		testObject.GetComponent<Renderer>().sharedMaterial = thisMaterial;
 		
@@ -458,7 +458,9 @@ public class MetallicGui : MonoBehaviour {
 			Graphics.Blit( _DiffuseMapOriginal, _TempMap, metallicBlitMaterial, 0);
 		}
 
-		RenderTexture.active = _TempMap;
+        yield return new WaitForEndOfFrame();
+
+        RenderTexture.active = _TempMap;
 
 		if (MainGuiScript._MetallicMap != null) {
 			Destroy (MainGuiScript._MetallicMap);
@@ -467,8 +469,10 @@ public class MetallicGui : MonoBehaviour {
 		MainGuiScript._MetallicMap = new Texture2D (_TempMap.width, _TempMap.height, TextureFormat.ARGB32, true, true);
 		MainGuiScript._MetallicMap.ReadPixels (new Rect (0, 0, _TempMap.width, _TempMap.height), 0, 0);
 		MainGuiScript._MetallicMap.Apply ();
-		
-		yield return new WaitForSeconds(0.01f);
+
+        yield return new WaitForEndOfFrame();
+
+        //yield return new WaitForSeconds(0.01f);
 		
 		CleanupTexture ( _TempMap );
 

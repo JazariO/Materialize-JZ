@@ -280,7 +280,7 @@ public class HeightFromDiffuseGui : MonoBehaviour {
 	}
 
 	// Use this for initialization
-	void Start () {
+	public void Start () {
 
         Resources.UnloadUnusedAssets();
 
@@ -1005,6 +1005,7 @@ public class HeightFromDiffuseGui : MonoBehaviour {
             Graphics.Blit(_BlurMap0, _TempHeightMap, blitMaterial, 2);
         }
 
+		yield return new WaitForEndOfFrame();
 
 		if (MainGuiScript._HeightMap != null) {
 			Destroy (MainGuiScript._HeightMap);
@@ -1025,9 +1026,11 @@ public class HeightFromDiffuseGui : MonoBehaviour {
 		MainGuiScript._HDHeightMap.wrapMode = TextureWrapMode.Repeat;
 		Graphics.Blit(_BlurMap0, MainGuiScript._HDHeightMap, blitMaterial, 2);
 
-		CleanupTexture (_TempHeightMap);
+        yield return new WaitForEndOfFrame();
 
-		yield return new WaitForSeconds(0.1f);
+        CleanupTexture (_TempHeightMap);
+
+		//yield return new WaitForSeconds(0.1f);
 
 		busy = false;
 	}

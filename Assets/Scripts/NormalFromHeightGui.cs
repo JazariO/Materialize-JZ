@@ -165,7 +165,7 @@ public class NormalFromHeightGui : MonoBehaviour {
 	}
 
 	// Use this for initialization
-	void Start () {
+	public void Start () {
 
 		MGS = MainGui.instance;
 		
@@ -489,8 +489,10 @@ public class NormalFromHeightGui : MonoBehaviour {
 		_TempNormalMap = new RenderTexture (imageSizeX, imageSizeY, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Linear);
 		_TempNormalMap.wrapMode = TextureWrapMode.Repeat;
 		Graphics.Blit(_BlurMap0, _TempNormalMap, blitMaterial, 4);
-		
-		if (MGS._NormalMap != null) {
+
+        yield return new WaitForEndOfFrame();
+
+        if (MGS._NormalMap != null) {
 			Destroy (MGS._NormalMap);
 		}
 
@@ -498,8 +500,10 @@ public class NormalFromHeightGui : MonoBehaviour {
 		MGS._NormalMap = new Texture2D( _TempNormalMap.width, _TempNormalMap.height, TextureFormat.ARGB32, true, true );
 		MGS._NormalMap.ReadPixels(new Rect(0, 0, _TempNormalMap.width, _TempNormalMap.height), 0, 0);
 		MGS._NormalMap.Apply();
-		
-		yield return new WaitForSeconds(0.1f);
+
+        yield return new WaitForEndOfFrame();
+
+        //yield return new WaitForSeconds(0.1f);
 		
 		CleanupTexture ( _TempNormalMap );
 

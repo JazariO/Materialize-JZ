@@ -94,59 +94,32 @@ namespace UnityExtension
             List<Vector3> lNormals = new List<Vector3>();
             List<Vector2> lUVs = new List<Vector2>();
             List<int>[] lIndices = new List<int>[lData.m_Groups.Count];
-            Dictionary<OBJFaceVertex, int> lVertexIndexRemap = new Dictionary<OBJFaceVertex, int>();
-            bool lHasNormals = lData.m_Normals.Count > 0;
-            bool lHasUVs = lData.m_UVs.Count > 0;
+            OBJGroup lGroup = null;
 
             lMesh.subMeshCount = lData.m_Groups.Count;
             for (int lGCount = 0; lGCount < lData.m_Groups.Count; ++lGCount)
             {
-                OBJGroup lGroup = lData.m_Groups[lGCount];
+                lGroup = lData.m_Groups[lGCount];
                 lIndices[lGCount] = new List<int>();
 
-                for (int lFCount = 0; lFCount < lGroup.Faces.Count; ++lFCount)
+				for (int lFCount = 0; lFCount < lGroup.Faces.Count; ++lFCount)
                 {
-                    OBJFace lFace = lGroup.Faces[lFCount];
-
-                    // Unity3d doesn't support non-triangle faces
-                    // so we do simple fan triangulation
-                    for (int lVCount = 1; lVCount < lFace.Count - 1; ++lVCount)
+                    for (int lVCount = 0; lVCount < lGroup.Faces[lFCount].Count; ++lVCount)
                     {
-                        foreach (int i in new int[]{0, lVCount, lVCount + 1})
+                        if (lGroup.Faces[lFCount][lVCount].m_VertexIndex < lData.m_Vertices.Count)
                         {
-                            OBJFaceVertex lFaceVertex = lFace[i];
-                            int lVertexIndex = -1;
+                            lIndices[lGCount].Add(lVertices.Count);
 
-                            if (!lVertexIndexRemap.TryGetValue(lFaceVertex, out lVertexIndex)) {
-                                lVertexIndexRemap[lFaceVertex] = lVertices.Count;
-                                lVertexIndex = lVertices.Count;
-
-                                lVertices.Add(lData.m_Vertices[lFaceVertex.m_VertexIndex]);
-                                if (lHasUVs)
-                                {
-                                    lUVs.Add(lData.m_UVs[lFaceVertex.m_UVIndex]);
-                                }
-                                if (lHasNormals)
-                                {
-                                    lNormals.Add(lData.m_Normals[lFaceVertex.m_NormalIndex]);
-                                }
-                            }
-
-                            lIndices[lGCount].Add(lVertexIndex);
+                            lVertices.Add(lData.m_Vertices[lGroup.Faces[lFCount][lVCount].m_VertexIndex]);
+                            lUVs.Add(lData.m_UVs[lGroup.Faces[lFCount][lVCount].m_UVIndex]);
+                            lNormals.Add(lData.m_Normals[lGroup.Faces[lFCount][lVCount].m_NormalIndex]);
                         }
                     }
                 }
             }
-
-            lMesh.triangles = new int[]{ };
             lMesh.vertices = lVertices.ToArray();
             lMesh.uv = lUVs.ToArray();
             lMesh.normals = lNormals.ToArray();
-            if (!lHasNormals)
-            {
-                lMesh.RecalculateNormals();
-            }
-
             lMesh.RecalculateTangents();
 
             for (int lGCount = 0; lGCount < lData.m_Groups.Count; ++lGCount)

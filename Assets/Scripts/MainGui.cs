@@ -8,7 +8,6 @@ using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
-using System.Diagnostics;
 
 public enum Textures {
 	height,
@@ -164,6 +163,7 @@ public class MainGui : MonoBehaviour {
 	public string QuicksavePathEdge = "";
 	public string QuicksavePathAO = "";
 	public string QuicksavePathProperty = "";
+	public string LoadedDiffusePath = "";
 
 	public PropChannelMap propRed = PropChannelMap.None;
 	public PropChannelMap propGreen = PropChannelMap.None;
@@ -196,6 +196,8 @@ public class MainGui : MonoBehaviour {
 
 	[DllImport ("FreeImage")]
 	private static extern FIBITMAP FreeImage_MakeThumbnail( FIBITMAP dib, int max_pixel_size, bool convert );
+
+	private bool normalMapFlipped = false;
 
 	void Start () {
 
@@ -249,9 +251,11 @@ public class MainGui : MonoBehaviour {
 
 		SettingsGuiScript.LoadSettings();
 
-		//HeightFromNormalGuiScript = HeightFromNormalGuiObject.GetComponent<HeightFromNormalGui>();
+        SetFormat(FileFormat.png);
 
-		if (Application.platform == RuntimePlatform.WindowsEditor || Application.platform == RuntimePlatform.WindowsPlayer) {
+        //HeightFromNormalGuiScript = HeightFromNormalGuiObject.GetComponent<HeightFromNormalGui>();
+
+        if (Application.platform == RuntimePlatform.WindowsEditor || Application.platform == RuntimePlatform.WindowsPlayer) {
 			pathChar = '\\';
 		}
 
@@ -1077,15 +1081,27 @@ public class MainGui : MonoBehaviour {
 			SetFormat (FileFormat.tiff);
 		}
 
-		// Flip Normal Map Y
-		if ( _NormalMap == null ){ GUI.enabled = false; } else { GUI.enabled = true; }
-		if (GUI.Button (new Rect(offsetX + 10, offsetY + 145, 100, 25), "Flip Normal Y")) {
-			FlipNormalMapY();
-		}
-		GUI.enabled = true;
+        // Flip Normal Map Y
+        if(_NormalMap == null) { GUI.enabled = false; } else { GUI.enabled = true; }
 
-		//Save Project
-		if (GUI.Button (new Rect(offsetX + 10, offsetY + 180, 100, 25), "Save Project")) {
+        // Non-interactable checkbox showing flip state
+        GUI.enabled = false;  // Disable to make it read-only
+        normalMapFlipped = GUI.Toggle(new Rect(offsetX + 10, offsetY + 145, 20, 25), normalMapFlipped, "");
+        GUI.enabled = true;   // Re-enable for the button
+
+        // Only disable button if no normal map exists
+        if(_NormalMap == null) { GUI.enabled = false; } else { GUI.enabled = true; }
+
+        // Button to flip
+        if(GUI.Button(new Rect(offsetX + 30, offsetY + 145, 80, 25), "Flip Normal Y"))
+        {
+            FlipNormalMapY();
+        }
+
+        GUI.enabled = true;
+
+        //Save Project
+        if (GUI.Button (new Rect(offsetX + 10, offsetY + 180, 100, 25), "Save Project")) {
 			SetFileMaskProject();
 			fileBrowser.ShowBrowser( "Save Project", this.SaveProject );
 		}
@@ -1218,7 +1234,7 @@ public class MainGui : MonoBehaviour {
 		// 		View Buttons		//
 		//==========================//
 
-		offsetX = 430;
+		offsetX = 140;
 		offsetY = 280;
 
 		if (GUI.Button (new Rect(offsetX, offsetY, 100, 40), "Post Process")) {
@@ -1275,7 +1291,7 @@ public class MainGui : MonoBehaviour {
 
 		offsetX += 100;
 
-		if (GUI.Button (new Rect(offsetX, offsetY, 120, 40), "Clear All\r\nTexture Maps")) {
+		if (GUI.Button (new Rect(offsetX, offsetY, 100, 40), "Clear All\r\nTexture Maps")) {
 			clearTextures = true;
 		}
 
@@ -1300,9 +1316,363 @@ public class MainGui : MonoBehaviour {
 
 		GUI.enabled = true;
 
-	}
+        offsetX += 110;
 
-	string PCM2String ( PropChannelMap pcm, string defaultName ){
+        // Disable if no diffuse map
+        if(_DiffuseMap)
+            GUI.enabled = false;
+
+        if(GUI.Button(new Rect(offsetX, offsetY, 100, 40), "Create All\r\nMaps"))
+        {
+            Debug.Log("Create All Maps");
+
+			StartCoroutine(CreateAllMapsCoroutine());
+
+        }
+        GUI.enabled = true;
+
+        offsetX += 110;
+
+        // Disable if no maps exist to save
+        if(_HeightMap == null || _NormalMap == null || _MetallicMap == null || _SmoothnessMap == null || _EdgeMap == null || _AOMap == null)
+            GUI.enabled = false;
+        
+		if(GUI.Button(new Rect(offsetX, offsetY, 80, 40), "Bake Maps"))
+        {
+            Debug.Log("BAKE MAPS - Starting export...");
+            BakeAllMaps();
+        }
+        GUI.enabled = true;
+    }
+
+	IEnumerator CreateAllMapsCoroutine()
+	{
+        // Height
+        CloseWindows();
+        FixSize();
+        HeightFromDiffuseGuiObject.SetActive(true);
+        HeightFromDiffuseGuiScript.Start();
+        HeightFromDiffuseGuiScript.NewTexture();
+        HeightFromDiffuseGuiScript.DoStuff();
+        yield return StartCoroutine(ProcessHeightDelayed());
+		yield return new WaitForSeconds(0.2f);
+
+		// Normal
+		CloseWindows();
+		FixSize();
+		NormalFromHeightGuiObject.SetActive(true);
+		NormalFromHeightGuiScript.Start();
+		NormalFromHeightGuiScript.NewTexture();
+		NormalFromHeightGuiScript.DoStuff();
+        yield return StartCoroutine(ProcessNormalDelayed());
+
+		// Metallic
+		CloseWindows();
+		FixSize();
+		MetallicGuiObject.SetActive(true);
+		MetallicGuiScript.Start();
+		MetallicGuiScript.NewTexture();
+		MetallicGuiScript.DoStuff();
+        yield return StartCoroutine(ProcessMetallicDelayed());
+
+		//// Smoothness
+		CloseWindows();
+		FixSize();
+		SmoothnessGuiObject.SetActive(true);
+		SmoothnessGuiScript.Start();
+		SmoothnessGuiScript.NewTexture();
+		SmoothnessGuiScript.DoStuff();
+        yield return StartCoroutine(ProcessSmoothnessDelayed());
+
+		//// Edge
+		CloseWindows();
+		FixSize();
+		EdgeFromNormalGuiObject.SetActive(true);
+		EdgeFromNormalGuiScript.Start();
+		EdgeFromNormalGuiScript.NewTexture();
+		EdgeFromNormalGuiScript.DoStuff();
+        yield return StartCoroutine(ProcessEdgeDelayed());
+
+		//// Ambient Occlusion
+		CloseWindows();
+		FixSize();
+		AOFromNormalGuiObject.SetActive(true);
+		AOFromNormalGuiScript.Start();
+		AOFromNormalGuiScript.NewTexture();
+		AOFromNormalGuiScript.DoStuff();
+        yield return StartCoroutine(ProcessAmbientOcclusionDelayed());
+    }
+
+	private float wait_time = 0.01f;
+
+    IEnumerator ProcessHeightDelayed()
+	{
+		yield return new WaitForSeconds(wait_time);
+        yield return StartCoroutine(HeightFromDiffuseGuiScript.ProcessHeight());
+    }
+
+    IEnumerator ProcessNormalDelayed()
+    {
+        yield return new WaitForSeconds(wait_time);
+
+        // IMPORTANT: ProcessHeight must run first to populate blur maps
+        yield return StartCoroutine(NormalFromHeightGuiScript.ProcessHeight());
+
+        // Wait for ProcessHeight to complete
+        while(NormalFromHeightGuiScript.busy)
+        {
+            yield return null;
+        }
+
+        // Now ProcessNormal can use the blur maps
+        yield return StartCoroutine(NormalFromHeightGuiScript.ProcessNormal());
+
+        // Wait for ProcessNormal to complete
+        while(NormalFromHeightGuiScript.busy)
+        {
+            yield return null;
+        }
+
+        yield return new WaitForEndOfFrame();
+    }
+
+    IEnumerator ProcessMetallicDelayed()
+    {
+        yield return new WaitForSeconds(wait_time);
+		yield return StartCoroutine(MetallicGuiScript.ProcessMetallic());
+    }
+
+    IEnumerator ProcessSmoothnessDelayed()
+    {
+        yield return new WaitForSeconds(wait_time);
+		yield return StartCoroutine(SmoothnessGuiScript.ProcessSmoothness());
+    }
+
+    IEnumerator ProcessEdgeDelayed()
+    {
+        yield return new WaitForSeconds(wait_time);
+		yield return StartCoroutine(EdgeFromNormalGuiScript.ProcessNormal());
+		yield return StartCoroutine(EdgeFromNormalGuiScript.ProcessEdge());
+    }
+
+    IEnumerator ProcessAmbientOcclusionDelayed()
+    {
+        yield return new WaitForSeconds(wait_time);
+		yield return StartCoroutine(AOFromNormalGuiScript.ProcessAO());
+    }
+
+    void BakeAllMaps()
+    {
+        // Use the stored diffuse path first, fall back to QuicksavePath
+        string basePath = "";
+
+        if(!string.IsNullOrEmpty(LoadedDiffusePath))
+        {
+            basePath = LoadedDiffusePath;
+        }
+        else if(!string.IsNullOrEmpty(QuicksavePathDiffuse))
+        {
+            basePath = QuicksavePathDiffuse;
+        }
+        else
+        {
+            Debug.LogError("No diffuse map path found. Please load a diffuse map first.");
+            return;
+        }
+
+        // Validate the path exists
+        if(!File.Exists(basePath))
+        {
+            Debug.LogError($"Diffuse file not found at: {basePath}");
+            return;
+        }
+
+        // Extract directory and parse filename
+        string directory = Path.GetDirectoryName(basePath);
+        string filenameWithExt = Path.GetFileName(basePath);
+        string filename = Path.GetFileNameWithoutExtension(filenameWithExt);
+
+        // Split by underscore
+        string[] parts = filename.Split('_');
+
+        if(parts.Length < 4)
+        {
+            Debug.LogError($"Filename '{filenameWithExt}' doesn't match naming convention. Expected format: t_family_0001_diffuse_seamless_1k.png");
+            return;
+        }
+
+        // Find the indexer (first part that's all numbers after family name)
+        int indexerPos = -1;
+        for(int i = 2; i < parts.Length; i++)
+        {
+            bool allDigits = true;
+            foreach(char c in parts[i])
+            {
+                if(!char.IsDigit(c))
+                {
+                    allDigits = false;
+                    break;
+                }
+            }
+            if(allDigits)
+            {
+                indexerPos = i;
+                break;
+            }
+        }
+
+        if(indexerPos == -1)
+        {
+            Debug.LogError($"No indexer found in filename '{filenameWithExt}'");
+            return;
+        }
+
+        // Build base name: t_familyname_variations
+        string baseName = "t";
+        for(int i = 1; i < indexerPos; i++)
+        {
+            baseName += "_" + parts[i];
+        }
+
+        string indexer = parts[indexerPos];
+
+        // Check for seamless (optional, comes after texture type)
+        bool hasSeamless = false;
+        int sizePos = indexerPos + 2;
+
+        if(indexerPos + 2 < parts.Length && parts[indexerPos + 2].ToLower() == "seamless")
+        {
+            hasSeamless = true;
+            sizePos = indexerPos + 3;
+        }
+
+        // Get size (last element)
+        string size = "";
+        if(sizePos < parts.Length)
+        {
+            size = parts[sizePos];
+        }
+        else if(parts.Length > indexerPos + 2)
+        {
+            size = parts[parts.Length - 1];
+        }
+        else
+        {
+            // Default to texture dimensions
+            if(_HeightMap != null)
+            {
+                int maxDim = Mathf.Max(_HeightMap.width, _HeightMap.height);
+                if(maxDim >= 1024)
+                {
+                    size = (maxDim / 1024) + "k";
+                }
+                else
+                {
+                    size = maxDim + "px";
+                }
+            }
+            else
+            {
+                size = "1k";
+            }
+        }
+
+        string seamlessStr = hasSeamless ? "_seamless" : "";
+
+        Debug.Log($"Baking maps to: {directory}");
+        Debug.Log($"Base: {baseName}, Index: {indexer}, Seamless: {hasSeamless}, Size: {size}");
+
+        int savedCount = 0;
+
+        // Save each map using currently selected format
+        if(_HeightMap != null)
+        {
+            string heightPath = Path.Combine(directory, $"{baseName}_{indexer}_height{seamlessStr}_{size}");
+            SaveLoadProjectScript.SaveFile(heightPath, selectedFormat, _HeightMap, "");
+            Debug.Log($"Saved: {baseName}_{indexer}_height{seamlessStr}_{size}");
+            savedCount++;
+        }
+
+        if(_NormalMap != null)
+        {
+            string normalPath = Path.Combine(directory, $"{baseName}_{indexer}_normalGL{seamlessStr}_{size}");
+            SaveLoadProjectScript.SaveFile(normalPath, selectedFormat, _NormalMap, "");
+            Debug.Log($"Saved: {baseName}_{indexer}_normalGL{seamlessStr}_{size}");
+            savedCount++;
+        }
+
+        if(_MetallicMap != null)
+        {
+            string metallicPath = Path.Combine(directory, $"{baseName}_{indexer}_metallic{seamlessStr}_{size}");
+            SaveLoadProjectScript.SaveFile(metallicPath, selectedFormat, _MetallicMap, "");
+            Debug.Log($"Saved: {baseName}_{indexer}_metallic{seamlessStr}_{size}");
+            savedCount++;
+        }
+
+        if(_SmoothnessMap != null)
+        {
+            string smoothnessPath = Path.Combine(directory, $"{baseName}_{indexer}_smoothness{seamlessStr}_{size}");
+            SaveLoadProjectScript.SaveFile(smoothnessPath, selectedFormat, _SmoothnessMap, "");
+            Debug.Log($"Saved: {baseName}_{indexer}_smoothness{seamlessStr}_{size}");
+            savedCount++;
+        }
+
+        if(_EdgeMap != null)
+        {
+            string edgePath = Path.Combine(directory, $"{baseName}_{indexer}_edge{seamlessStr}_{size}");
+            SaveLoadProjectScript.SaveFile(edgePath, selectedFormat, _EdgeMap, "");
+            Debug.Log($"Saved: {baseName}_{indexer}_edge{seamlessStr}_{size}");
+            savedCount++;
+        }
+
+        if(_AOMap != null)
+        {
+            string aoPath = Path.Combine(directory, $"{baseName}_{indexer}_occlusion{seamlessStr}_{size}");
+            SaveLoadProjectScript.SaveFile(aoPath, selectedFormat, _AOMap, "");
+            Debug.Log($"Saved: {baseName}_{indexer}_occlusion{seamlessStr}_{size}");
+            savedCount++;
+        }
+
+        if(_DiffuseMap != null)
+        {
+            string diffusePath = Path.Combine(directory, $"{baseName}_{indexer}_diffuse{seamlessStr}_{size}");
+            SaveLoadProjectScript.SaveFile(diffusePath, selectedFormat, _DiffuseMap, "");
+            Debug.Log($"Saved: {baseName}_{indexer}_diffuse{seamlessStr}_{size}");
+            savedCount++;
+        }
+        else if(_DiffuseMapOriginal != null)
+        {
+            string diffusePath = Path.Combine(directory, $"{baseName}_{indexer}_diffuse{seamlessStr}_{size}");
+            SaveLoadProjectScript.SaveFile(diffusePath, selectedFormat, _DiffuseMapOriginal, "");
+            Debug.Log($"Saved: {baseName}_{indexer}_diffuse{seamlessStr}_{size}");
+            savedCount++;
+        }
+
+        Debug.Log($"Bake complete! Saved {savedCount} maps.");
+    }
+
+    /// <summary>
+    /// Save a texture map to a file using the SaveLoadProject script
+    /// </summary>
+    void SaveMapToFile(Texture2D texture, string filePath)
+    {
+        if(texture == null)
+        {
+            Debug.LogWarning($"Attempted to save null texture to {filePath}");
+            return;
+        }
+
+        try
+        {
+            SaveLoadProjectScript.SaveFile(filePath, selectedFormat, texture, "");
+        }
+        catch(System.Exception e)
+        {
+            Debug.LogError($"Error saving map to {filePath}: {e.Message}");
+        }
+    }
+
+    string PCM2String ( PropChannelMap pcm, string defaultName ){
 
 		string returnString = defaultName;
 
@@ -1331,59 +1701,65 @@ public class MainGui : MonoBehaviour {
 
 	}
 
-	public void FlipNormalMapY(){
+    public void FlipNormalMapY()
+    {
+        if(_NormalMap != null)
+        {
+            Color pixelColor = Color.black;
+            for(int i = 0; i < _NormalMap.width; i++)
+            {
+                for(int j = 0; j < _NormalMap.height; j++)
+                {
+                    pixelColor = _NormalMap.GetPixel(i, j);
+                    pixelColor.g = 1.0f - pixelColor.g;
+                    _NormalMap.SetPixel(i, j, pixelColor);
+                }
+            }
+            _NormalMap.Apply();
 
-		if( _NormalMap != null ){
-			Color pixelColor = Color.black;
-			//UnityEngine.Debug.Log (_NormalMap.GetPixel (0, 0).b);
-			for (int i = 0; i < _NormalMap.width; i ++) {
-				for (int j = 0; j < _NormalMap.height; j ++) {
-					pixelColor = _NormalMap.GetPixel (i, j);
-					pixelColor.g = 1.0f - pixelColor.g;
-					_NormalMap.SetPixel (i, j, pixelColor);
-				}
-			}
-			_NormalMap.Apply ();
-		}
+            // Toggle flip state
+            normalMapFlipped = !normalMapFlipped;
+        }
 
-		/*
-		bool SPM = false;
-		if (SampleMaterial.GetTexture ("_MainTex") == _NormalMap) {
-			SPM = true;
-		}
 
-		Shader FlipNormalYShader = Shader.Find ("Hidden/Blit_FlipNormalY");
-		Material FlipNormalYMaterial = new Material (FlipNormalYShader);
+        /*
+        bool SPM = false;
+        if (SampleMaterial.GetTexture ("_MainTex") == _NormalMap) {
+            SPM = true;
+        }
 
-		RenderTexture _TempMap = RenderTexture.GetTemporary (_NormalMap.width, _NormalMap.height, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Default);
-		Graphics.Blit (_NormalMap, _TempMap, FlipNormalYMaterial, 0);
-		RenderTexture.active = _TempMap;
-		
-		if (_NormalMap != null) {
-			Destroy (_NormalMap);
-			_NormalMap = null;
-		}
-		
-		_NormalMap = new Texture2D (_TempMap.width, _TempMap.height);
-		_NormalMap.ReadPixels (new Rect (0, 0, _TempMap.width, _TempMap.height), 0, 0);
-		_NormalMap.Apply ();
+        Shader FlipNormalYShader = Shader.Find ("Hidden/Blit_FlipNormalY");
+        Material FlipNormalYMaterial = new Material (FlipNormalYShader);
 
-		Destroy (FlipNormalYShader);
-		Destroy (FlipNormalYMaterial);
-		
-		RenderTexture.ReleaseTemporary (_TempMap);
-		_TempMap = null;
+        RenderTexture _TempMap = RenderTexture.GetTemporary (_NormalMap.width, _NormalMap.height, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Default);
+        Graphics.Blit (_NormalMap, _TempMap, FlipNormalYMaterial, 0);
+        RenderTexture.active = _TempMap;
 
-		if (MaterialGuiObject.activeSelf) {
-			SetMaterialValues ();
-			FullMaterial.SetTexture ("_Normal", _NormalMap);
-			MaterialGuiScript.Initialize();
-		}else if (SPM) {
-			SetPreviewMaterial (_NormalMap);
-		}
-		*/
+        if (_NormalMap != null) {
+            Destroy (_NormalMap);
+            _NormalMap = null;
+        }
 
-	}
+        _NormalMap = new Texture2D (_TempMap.width, _TempMap.height);
+        _NormalMap.ReadPixels (new Rect (0, 0, _TempMap.width, _TempMap.height), 0, 0);
+        _NormalMap.Apply ();
+
+        Destroy (FlipNormalYShader);
+        Destroy (FlipNormalYMaterial);
+
+        RenderTexture.ReleaseTemporary (_TempMap);
+        _TempMap = null;
+
+        if (MaterialGuiObject.activeSelf) {
+            SetMaterialValues ();
+            FullMaterial.SetTexture ("_Normal", _NormalMap);
+            MaterialGuiScript.Initialize();
+        }else if (SPM) {
+            SetPreviewMaterial (_NormalMap);
+        }
+        */
+
+    }
 
 	void ClearTexture( Texture2D textureToClear ){
 
@@ -1423,6 +1799,7 @@ public class MainGui : MonoBehaviour {
 				Destroy (_NormalMap);
 				_NormalMap = null;
 			}
+			normalMapFlipped = false;
 			break;
 		case MapType.metallic:
 			if (_MetallicMap) {
@@ -1729,6 +2106,12 @@ public class MainGui : MonoBehaviour {
 	void OpenFile (string pathToFile) {
 		if (pathToFile == null) {
 			return;
+		}
+
+		if(mapTypeToLoad == MapType.diffuseOriginal || mapTypeToLoad == MapType.diffuse)
+		{
+			LoadedDiffusePath = pathToFile;
+			Debug.Log($"Store diffuse path: {LoadedDiffusePath}");
 		}
 
 		// clear the existing texture we are loading
