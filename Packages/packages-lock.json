@@ -1,5 +1,12 @@
 {
   "dependencies": {
+    "com.jazari.obj-unity3d-jz": {
+      "version": "https://github.com/JazariO/obj-unity3d-JZ.git?path=/com.jazari.obj-unity3d-jz",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {},
+      "hash": "b31c03d789022c95d331dcd5e8ef0f2fd20812fc"
+    },
     "com.unity.collab-proxy": {
       "version": "2.7.1",
       "depth": 0,

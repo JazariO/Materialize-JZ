@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "com.jazari.obj-unity3d-jz": "https://github.com/JazariO/obj-unity3d-JZ.git?path=/com.jazari.obj-unity3d-jz",
     "com.unity.collab-proxy": "2.7.1",
     "com.unity.ide.rider": "3.0.38",
     "com.unity.ide.visualstudio": "2.0.26",
