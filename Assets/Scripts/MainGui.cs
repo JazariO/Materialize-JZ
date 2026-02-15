@@ -203,29 +203,14 @@ public class MainGui : MonoBehaviour
     private bool normalMapFlipped = true;
 
     // Batch processing
-    bool batchMode = false;
-    string batchDirectory = "";
-    List<string> batchFiles = new List<string>();
-    int currentBatchIndex = 0;
-    bool processingBatch = false;
+    bool batchProcessing = false;
+    int currentBatchFolder = 0;
+    List<string> batchFolderPaths = new List<string>();
 
     void Start()
     {
 
         MainGui.instance = this;
-
-        // Parse command line arguments for batch processing
-        string[] args = System.Environment.GetCommandLineArgs();
-        for(int i = 0; i < args.Length; i++)
-        {
-            if(args[i] == "-batchDir" && i + 1 < args.Length)
-            {
-                batchDirectory = args[i + 1];
-                batchMode = true;
-                Debug.Log($"Batch mode enabled. Directory: {batchDirectory}");
-                break;
-            }
-        }
 
         _HeightMap = null;
         _HDHeightMap = null;
@@ -292,11 +277,6 @@ public class MainGui : MonoBehaviour
 
         reflectionProbe.RenderProbe();
 
-        // Start batch processing if enabled
-        if(batchMode)
-        {
-            StartCoroutine(BatchProcessingCoroutine());
-        }
     }
 
 
@@ -490,13 +470,7 @@ public class MainGui : MonoBehaviour
 
     }
 
-    void Update()
-    {
-        // Display batch progress
-        if(batchMode && processingBatch && currentBatchIndex < batchFiles.Count)
-        {
-            Debug.Log($"Batch progress: {currentBatchIndex + 1}/{batchFiles.Count}");
-        }
+    void Update() {
     }
 
     void ShowFullMaterial()
@@ -523,15 +497,15 @@ public class MainGui : MonoBehaviour
         // 			  Batch processing overlay      		//
         //==================================================//
 
-        if(batchMode && processingBatch)
+        if(batchProcessing)
         {
-            GUI.Box(new Rect(10, 10, 400, 80), "");
-            GUI.Label(new Rect(20, 20, 380, 30), $"BATCH PROCESSING: {currentBatchIndex + 1} / {batchFiles.Count}");
+            GUI.Box(new Rect(10, 10, 450, 80), "");
+            GUI.Label(new Rect(20, 20, 430, 30), $"BATCH PROCESSING: {currentBatchFolder + 1} / {batchFolderPaths.Count}");
 
-            if(currentBatchIndex < batchFiles.Count)
+            if(currentBatchFolder < batchFolderPaths.Count)
             {
-                string currentFile = Path.GetFileName(batchFiles[currentBatchIndex]);
-                GUI.Label(new Rect(20, 50, 380, 30), $"Current: {currentFile}");
+                string currentFolder = Path.GetFileName(batchFolderPaths[currentBatchFolder]);
+                GUI.Label(new Rect(20, 50, 430, 30), $"Current Folder: {currentFolder}");
             }
         }
 
@@ -1568,6 +1542,25 @@ public class MainGui : MonoBehaviour
             BakeAllMaps();
         }
         GUI.enabled = true;
+
+        offsetX += 90;
+
+        // Batch Process button - requires a diffuse map to be loaded first
+        if(string.IsNullOrEmpty(LoadedDiffusePath))
+        {
+            GUI.enabled = false;
+        }
+        else
+        {
+            GUI.enabled = true;
+        }
+
+        if(GUI.Button(new Rect(offsetX, offsetY + 60, 100, 40), "Batch Process\r\nSiblings"))
+        {
+            Debug.Log("Starting Batch Process of sibling folders...");
+            StartCoroutine(BatchProcessSiblingsCoroutine());
+        }
+        GUI.enabled = true;
     }
 
     IEnumerator CreateAllMapsCoroutine()
@@ -1629,68 +1622,104 @@ public class MainGui : MonoBehaviour
     }
 
     /// <summary>
-    /// Complete batch processing in one coroutine
+    /// Batch process all sibling folders starting from current diffuse texture location
+    /// Example: If current is .../0001/texture.png, process 0002, 0003, etc.
     /// </summary>
-    IEnumerator BatchProcessingCoroutine()
+    IEnumerator BatchProcessSiblingsCoroutine()
     {
-        // Wait for Unity to fully initialize
-        yield return new WaitForSeconds(1.0f);
-
-        Debug.Log("=== BATCH PROCESSING STARTED ===");
-        Debug.Log($"Scanning directory: {batchDirectory}");
-
-        if(!Directory.Exists(batchDirectory))
+        if(string.IsNullOrEmpty(LoadedDiffusePath))
         {
-            Debug.LogError($"Batch directory does not exist: {batchDirectory}");
-            Application.Quit();
+            Debug.LogError("No diffuse path loaded. Load a diffuse texture first.");
             yield break;
         }
 
-        // Find all subdirectories and their diffuse files
-        string[] subdirectories = Directory.GetDirectories(batchDirectory);
-        Debug.Log($"Found {subdirectories.Length} subdirectories");
+        batchProcessing = true;
 
-        foreach(string subdir in subdirectories)
+        // Parse current path to find parent directory and current folder number
+        string currentFilePath = LoadedDiffusePath;
+        string currentFolder = Path.GetDirectoryName(currentFilePath);
+        string parentFolder = Path.GetDirectoryName(currentFolder);
+        string currentFolderName = Path.GetFileName(currentFolder);
+
+        Debug.Log($"Current folder: {currentFolder}");
+        Debug.Log($"Parent folder: {parentFolder}");
+        Debug.Log($"Current folder name: {currentFolderName}");
+
+        // Parse the current folder number
+        int currentFolderNumber = -1;
+        bool isNumeric = int.TryParse(currentFolderName, out currentFolderNumber);
+
+        if(!isNumeric)
         {
-            string[] files = Directory.GetFiles(subdir, "*_diffuse_*.png");
-            if(files.Length > 0)
-            {
-                batchFiles.Add(files[0]);
-                Debug.Log($"Queued: {Path.GetFileName(files[0])}");
-            }
-            else
-            {
-                Debug.LogWarning($"No diffuse file found in: {Path.GetFileName(subdir)}");
-            }
-        }
-
-        Debug.Log($"=== TOTAL FILES TO PROCESS: {batchFiles.Count} ===");
-
-        if(batchFiles.Count == 0)
-        {
-            Debug.LogError("No files found to process!");
-            Application.Quit();
+            Debug.LogError($"Current folder '{currentFolderName}' is not a number. Expected format like '0001', '0002', etc.");
+            batchProcessing = false;
             yield break;
         }
 
-        // Process each file
-        processingBatch = true;
+        Debug.Log($"Current folder number: {currentFolderNumber:D4}");
 
-        for(currentBatchIndex = 0; currentBatchIndex < batchFiles.Count; currentBatchIndex++)
+        // Get all subdirectories in parent folder
+        string[] allSubdirectories = Directory.GetDirectories(parentFolder);
+        Debug.Log($"Found {allSubdirectories.Length} total subdirectories");
+
+        // Filter for numeric folders and sort them
+        batchFolderPaths.Clear();
+        foreach(string subdir in allSubdirectories)
         {
-            string filePath = batchFiles[currentBatchIndex];
+            string folderName = Path.GetFileName(subdir);
+            int folderNumber;
+            if(int.TryParse(folderName, out folderNumber))
+            {
+                // Only add folders with numbers >= current folder
+                if(folderNumber >= currentFolderNumber)
+                {
+                    batchFolderPaths.Add(subdir);
+                }
+            }
+        }
 
-            Debug.Log($"=== PROCESSING {currentBatchIndex + 1}/{batchFiles.Count}: {Path.GetFileName(filePath)} ===");
+        // Sort folders numerically
+        batchFolderPaths.Sort((a, b) => {
+            int numA = int.Parse(Path.GetFileName(a));
+            int numB = int.Parse(Path.GetFileName(b));
+            return numA.CompareTo(numB);
+        });
+
+        Debug.Log($"=== BATCH PROCESSING {batchFolderPaths.Count} FOLDERS ===");
+        foreach(string folder in batchFolderPaths)
+        {
+            Debug.Log($"  Queued: {Path.GetFileName(folder)}");
+        }
+
+        // Process each folder
+        for(currentBatchFolder = 0; currentBatchFolder < batchFolderPaths.Count; currentBatchFolder++)
+        {
+            string folderPath = batchFolderPaths[currentBatchFolder];
+            string folderName = Path.GetFileName(folderPath);
+
+            Debug.Log($"=== PROCESSING FOLDER {currentBatchFolder + 1}/{batchFolderPaths.Count}: {folderName} ===");
+
+            // Find diffuse file in this folder
+            string[] diffuseFiles = Directory.GetFiles(folderPath, "*_diffuse_*.png");
+
+            if(diffuseFiles.Length == 0)
+            {
+                Debug.LogWarning($"No diffuse file found in {folderName}, skipping...");
+                continue;
+            }
+
+            string diffusePath = diffuseFiles[0];
+            Debug.Log($"Found diffuse: {Path.GetFileName(diffusePath)}");
 
             // Clear existing textures
             ClearAllTextures();
             yield return new WaitForSeconds(0.2f);
 
             // Load diffuse map
-            Debug.Log($"Loading diffuse: {filePath}");
+            Debug.Log($"Loading diffuse: {diffusePath}");
             mapTypeToLoad = MapType.diffuseOriginal;
-            LoadedDiffusePath = filePath;
-            StartCoroutine(SaveLoadProjectScript.LoadTexture(mapTypeToLoad, filePath));
+            LoadedDiffusePath = diffusePath;
+            StartCoroutine(SaveLoadProjectScript.LoadTexture(mapTypeToLoad, diffusePath));
 
             // Wait for texture to load
             yield return new WaitForSeconds(1.0f);
@@ -1704,8 +1733,8 @@ public class MainGui : MonoBehaviour
 
             if(_DiffuseMapOriginal == null && _DiffuseMap == null)
             {
-                Debug.LogError($"Failed to load diffuse map: {filePath}");
-                continue; // Skip to next file
+                Debug.LogError($"Failed to load diffuse map: {diffusePath}");
+                continue;
             }
 
             Debug.Log("Diffuse loaded successfully");
@@ -1720,19 +1749,16 @@ public class MainGui : MonoBehaviour
             BakeAllMaps();
             yield return new WaitForSeconds(1.0f);
 
-            Debug.Log($"✓ Completed: {Path.GetFileName(filePath)}");
+            Debug.Log($"✓ Completed folder: {folderName}");
 
-            // Small delay between files
+            // Small delay between folders
             yield return new WaitForSeconds(0.5f);
         }
 
-        processingBatch = false;
+        batchProcessing = false;
 
         Debug.Log("=== BATCH PROCESSING COMPLETE ===");
-        Debug.Log($"Successfully processed {batchFiles.Count} texture sets");
-
-        // Auto-quit
-        Application.Quit();
+        Debug.Log($"Successfully processed {batchFolderPaths.Count} folders");
     }
 
     private float wait_time = 0.01f;
